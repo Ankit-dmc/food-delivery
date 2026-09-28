@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    @apply bg-ink text-paper;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: #ff4b3e;
+    color: #131316;
+  }
+
+  /* The sign painter never tracks letters out. */
+  .font-display {
+    letter-spacing: 0;
+  }
+}
+
+/*
+ * Film grain over the whole night scene — keeps the ink canvas from
+ * reading as a flat digital void. Non-interactive, very low opacity.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+@layer components {
+  /* ---- Buttons: painted blocks with press-down feedback ---- */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-chip bg-chili px-5 py-3 font-display text-base uppercase text-ink shadow-sticker transition duration-150 hover:bg-chili-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-neon focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:translate-x-0 disabled:active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-chip border border-paper/30 bg-charcoal-deep px-5 py-3 font-display text-base uppercase text-paper transition duration-150 hover:border-paper/70 hover:bg-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-neon active:translate-x-[2px] active:translate-y-[2px] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* ---- Inputs: pale paper forms pinned to the stall ---- */
+  .input {
+    @apply w-full rounded-chip border border-ink/25 bg-paper-bright px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/40 focus:border-chili focus:outline-none focus:ring-2 focus:ring-chili/30;
+  }
+
+  /* ---- Paper chit: the one light surface on the ink canvas ---- */
+  .card {
+    @apply rounded-card bg-paper text-ink shadow-sticker;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-ink/70;
+  }
+
+  /* ---- Charcoal stall front ---- */
+  .board {
+    @apply rounded-card border border-paper/10 bg-charcoal;
+  }
+
+  /* ---- Stamped meta chips (mono, never middle-dot separated) ---- */
+  .stamp-neon {
+    @apply inline-flex items-center gap-1 rounded-chip border border-neon/70 px-1.5 py-0.5 font-mono text-xs text-neon;
+  }
+
+  .stamp-chili {
+    @apply inline-flex items-center gap-1 rounded-chip border border-chili/70 px-1.5 py-0.5 font-mono text-xs text-chili;
+  }
+
+  .stamp-plain {
+    @apply inline-flex items-center gap-1 rounded-chip border border-paper/25 px-1.5 py-0.5 font-mono text-xs text-paper/70;
+  }
+
+  /* ---- Masking tape holding a board to the wall ---- */
+  .tape {
+    @apply inline-block -rotate-2 bg-neon px-3 py-1 font-display text-xs uppercase text-ink shadow-sticker;
+  }
+
+  /*
+   * ---- Thermal receipt ----
+   * Scalloped, torn bottom edge via a punched strip below the paper.
+   */
+  .receipt {
+    @apply relative rounded-t-card bg-paper font-mono text-ink shadow-sticker;
+  }
+
+  .receipt::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -11px;
+    height: 12px;
+    background-image: radial-gradient(
+      circle at 10px 0,
+      transparent 0 5.5px,
+      #ede6d6 6px
+    );
+    background-size: 20px 12px;
+    background-repeat: repeat-x;
+  }
+
+  /* Dotted leader line between a bill label and its amount. */
+  .leader {
+    @apply min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-ink/40;
+  }
+}

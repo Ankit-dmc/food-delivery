@@ -1,0 +1,154 @@
+// ---------------------------------------------------------------------------
+// Food Delivery — Prisma schema (PostgreSQL)
+// ---------------------------------------------------------------------------
+// Money note: prices/totalAmount are stored as Float in INR (rupees) so the
+// JSON API stays ergonomic for the client. If you scale to heavy reconciliation
+// or refunds, migrate these columns to integer minor units (paise) — Razorpay
+// itself already works in paise (amounts are converted in lib/razorpay.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Roles
+// Only CUSTOMER flows are implemented end-to-end in this build.
+//
+// AUTHORIZATION SCAFFOLD: RESTAURANT_OWNER and ADMIN checks belong at the
+// top of the relevant API route handlers (see `requireRole()` in lib/auth.ts).
+// Examples:
+//   - RESTAURANT_OWNER: guard menu CRUD routes by verifying the session user
+//     owns the restaurant referenced by :id (never trust a client-sent role).
+//   - ADMIN: guard moderation/refund endpoints.
+// Until then, every route in this app treats authenticated users as customers.
+// ---------------------------------------------------------------------------
+enum Role {
+  CUSTOMER
+  RESTAURANT_OWNER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum Cuisine {
+  FAST_FOOD
+  ITALIAN
+  INDIAN
+  VEGAN
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String
+  email          String    @unique
+  hashedPassword String // bcrypt hash — plaintext is never stored
+  role           Role      @default(CUSTOMER)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  addresses Address[]
+  orders    Order[]
+
+  @@map("users")
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Restaurant {
+  id                  String      @id @default(cuid())
+  name                String      @unique
+  image               String
+  rating              Float       @default(0)
+  cuisine             Cuisine
+  description         String?
+  deliveryTimeMinutes Int         @default(30)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  menuItems MenuItem[]
+
+  @@index([cuisine])
+  @@map("restaurants")
+}
+
+model MenuItem {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  description  String     @default("")
+  price        Float // INR
+  isVeg        Boolean    @default(true)
+  image        String
+  createdAt    DateTime   @default(now())
+
+  orderItems OrderItem[]
+
+  @@index([restaurantId])
+  @@map("menu_items")
+}
+
+model Order {
+  id     String      @id @default(cuid())
+  userId String
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status OrderStatus @default(PENDING)
+
+  // Idempotency key generated once per checkout session on the client.
+  // The composite unique below is what guarantees a duplicate create-order
+  // request cannot produce a second Razorpay order for the same pending cart.
+  clientReference String
+
+  totalAmount Float // INR
+
+  razorpayOrderId    String? @unique // "order_..." — unique lookup key for verify + webhook
+  razorpayPaymentId  String? // "pay_..." — set by whichever path wins the race
+  razorpaySignature  String? // signature that authorized the SUCCESS transition
+  paymentProcessedAt DateTime? // when the SUCCESS/FAILED transition happened
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, clientReference])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  quantity   Int
+  price      Float // INR — price snapshot at order time (menu price may change later)
+
+  @@index([orderId])
+  @@map("order_items")
+}
